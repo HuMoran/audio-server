@@ -1,6 +1,6 @@
 use clap::Parser;
 use poem::{listener::TcpListener, middleware::AddData, web::Data, EndpointExt, Route, Server};
-use poem_openapi::{param::Path, payload::Json, Object, OpenApi, OpenApiService};
+use poem_openapi::{param::Path, payload::Json, Object, Enum, OpenApi, OpenApiService};
 use rodio::{OutputStream, Sink};
 use std::io::BufReader;
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -9,10 +9,22 @@ use std::thread;
 
 struct Api;
 
+/// API请求返回操作码
+#[derive(Debug, Enum)]
+#[oai(rename_all="camelCase")]
+pub enum ResponseCode {
+    /// 正常
+    Success,
+    /// 参数错误
+    ParameterError,
+    /// 内部错误
+    ServerError,
+}
+
 #[derive(Object)]
 struct Response {
-    message: String,
-    code: u32,
+    msg: String,
+    code: ResponseCode,
 }
 
 #[OpenApi]
@@ -24,11 +36,11 @@ impl Api {
         assets_path: Data<&String>,
         name: Path<String>,
     ) -> Json<Response> {
-        let path = std::path::Path::new(assets_path.as_str()).join(name.0 + ".wav");
+        let path = std::path::Path::new(assets_path.as_str()).join(name.0);
         if !path.exists() {
             return Json(Response {
-                message: "File not found".to_owned(),
-                code: 1,
+                msg: "File not found".to_owned(),
+                code: ResponseCode::ParameterError,
             });
         }
 
@@ -36,14 +48,14 @@ impl Api {
             Ok(tx) => {
                 tx.send(String::from(path.to_str().unwrap())).unwrap();
                 return Json(Response {
-                    message: "success".to_owned(),
-                    code: 0,
+                    msg: "success".to_owned(),
+                    code: ResponseCode::Success,
                 });
             }
             Err(_) => {
                 return Json(Response {
-                    message: "Failed to send message".to_owned(),
-                    code: 1,
+                    msg: "Failed to send message".to_owned(),
+                    code: ResponseCode::ServerError,
                 });
             }
         }
