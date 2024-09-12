@@ -145,7 +145,7 @@ fn paly(rx: Receiver<Message>) {
                     continue;
                 };
 
-                // sink.stop();
+                sink.stop();
                 if let Err(e) = Decoder::new(BufReader::new(file)).map(|s| {
                     sink.append(s.repeat_infinite());
                     sink.play();
@@ -208,7 +208,7 @@ async fn main() -> Result<(), std::io::Error> {
         .with(AddData::new(tx))
         .with(AddData::new(args.assets_path));
 
-    Server::new(TcpListener::bind("0.0.0.0:3001"))
+    Server::new(TcpListener::bind("127.0.0.1:3001"))
         .run(route)
         .await?;
 
